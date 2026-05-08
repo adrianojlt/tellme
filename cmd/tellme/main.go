@@ -1,8 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+
+	"tellme/internal/domain"
+	"tellme/internal/providers/fake"
 )
 
 const usage = `Usage: tellme <query>
@@ -27,5 +31,17 @@ func main() {
 	}
 
 	query := args[0]
-	fmt.Printf("You asked: %s\n", query)
+
+	provider := fake.New()
+	suggestions, err := provider.SuggestCommands(context.Background(), domain.SuggestRequest{
+		UserQuery: query,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	for _, s := range suggestions {
+		fmt.Printf("%s: %s\n", s.Title, s.Command)
+	}
 }
