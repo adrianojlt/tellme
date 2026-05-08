@@ -33,7 +33,7 @@ func main() {
 
 	query := args[0]
 
-	a := app.New(fake.New(), cli.PrintSuggestions)
+	a := app.New(fake.New(), cli.PrintSuggestions, cli.SelectSuggestion)
 	if err := a.Run(context.Background(), query); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
