@@ -2,14 +2,17 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"tellme/internal/app"
 	"tellme/internal/cli"
 	"tellme/internal/clipboard"
 	"tellme/internal/config"
+	"tellme/internal/prompt"
 	"tellme/internal/providers"
 )
 
@@ -20,6 +23,14 @@ Ask a natural language question and get shell command suggestions.
 
 Example:
   tellme "list active docker containers"
+
+Supported providers:
+  anthropic   ANTHROPIC_API_KEY
+  openai      OPENAI_API_KEY
+  mistral     MISTRAL_API_KEY
+  groq        GROQ_API_KEY
+
+Config file: ~/.config/tellme/config.toml
 
 Flags:
   --add-llm        Add or update an LLM provider (interactive)
@@ -93,6 +104,7 @@ func main() {
 		fmt.Printf("  OpenAI:    %s\n", keyStatus(cfg.Providers.OpenAI.APIKey))
 		fmt.Printf("  Mistral:   %s\n", keyStatus(cfg.Providers.Mistral.APIKey))
 		fmt.Printf("  Groq:      %s\n", keyStatus(cfg.Providers.Groq.APIKey))
+		
 		os.Exit(0)
 	}
 
@@ -110,9 +122,21 @@ func main() {
 
 	query := args[0]
 
+	if strings.TrimSpace(query) == "" {
+		fmt.Fprintln(os.Stderr, "Error: query cannot be empty")
+		os.Exit(1)
+	}
+
 	a := app.New(p, cli.PrintSuggestions, cli.SelectSuggestion, cfg.Behavior.MaxOptions, clipboard.Copy, cfg.Behavior.CopyAfterSelect)
 	if err := a.Run(context.Background(), query); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		switch {
+		case errors.Is(err, context.DeadlineExceeded):
+			fmt.Fprintln(os.Stderr, "Request timed out. Check your connection or try again.")
+		case errors.Is(err, prompt.ErrNoSuggestions):
+			fmt.Fprintln(os.Stderr, "No suggestions returned. Try rephrasing your query.")
+		default:
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		}
 		os.Exit(1)
 	}
 }

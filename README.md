@@ -30,11 +30,26 @@ go run ./cmd/tellme "your question here"
 
 ```
 Usage: tellme <query>
+       tellme [flags]
 
 Ask a natural language question and get shell command suggestions.
 
 Example:
   tellme "list active docker containers"
+
+Supported providers:
+  anthropic   ANTHROPIC_API_KEY
+  openai      OPENAI_API_KEY
+  mistral     MISTRAL_API_KEY
+  groq        GROQ_API_KEY
+
+Config file: ~/.config/tellme/config.toml
+
+Flags:
+  --add-llm        Add or update an LLM provider (interactive)
+  --set-provider   Switch the active provider
+  --config         Show active configuration
+  --help           Show this help message
 ```
 
 ## Configuration
@@ -64,7 +79,3 @@ API keys can also be set via environment variables (take precedence over the fil
 - `ANTHROPIC_API_KEY`
 - `MISTRAL_API_KEY`
 - `GROQ_API_KEY`
-
-## Current state
-
-Part 9 complete: all four providers are supported. Set `provider` in the config to `anthropic`, `openai`, `mistral`, or `groq` and supply the matching API key.

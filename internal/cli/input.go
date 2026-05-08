@@ -12,11 +12,14 @@ import (
 )
 
 func SelectSuggestion(suggestions []domain.CommandSuggestion) (*domain.CommandSuggestion, error) {
+	return selectFrom(os.Stdin, suggestions)
+}
 
-	reader := bufio.NewReader(os.Stdin)
+func selectFrom(r io.Reader, suggestions []domain.CommandSuggestion) (*domain.CommandSuggestion, error) {
+
+	reader := bufio.NewReader(r)
 
 	for {
-
 		fmt.Printf("Enter number (0-%d): ", len(suggestions))
 
 		line, err := reader.ReadString('\n')

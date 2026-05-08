@@ -8,6 +8,8 @@ import (
 	"tellme/internal/domain"
 )
 
+var ErrNoSuggestions = errors.New("no suggestions in response")
+
 type LLMResponse struct {
 	Suggestions []domain.CommandSuggestion `json:"suggestions"`
 }
@@ -28,7 +30,7 @@ func ParseResponse(raw string) ([]domain.CommandSuggestion, error) {
 	}
 
 	if len(resp.Suggestions) == 0 {
-		return nil, errors.New("no suggestions in response")
+		return nil, fmt.Errorf("%w", ErrNoSuggestions)
 	}
 
 	return resp.Suggestions, nil

@@ -52,10 +52,14 @@ type response struct {
 }
 
 type apiError struct {
+	// OpenAI/Groq format: {"error": {"message": "...", "type": "..."}}
 	Error struct {
 		Message string `json:"message"`
 		Type    string `json:"type"`
 	} `json:"error"`
+	// Mistral format: {"message": "...", "type": "..."}
+	Message string `json:"message"`
+	Type    string `json:"type"`
 }
 
 func (c *Client) SuggestCommands(ctx context.Context, req domain.SuggestRequest) ([]domain.CommandSuggestion, error) {
@@ -99,7 +103,17 @@ func (c *Client) SuggestCommands(ctx context.Context, req domain.SuggestRequest)
 			return nil, fmt.Errorf("API error (HTTP %d)", resp.StatusCode)
 		}
 
-		return nil, fmt.Errorf("API error (%s): %s", apiErr.Error.Type, apiErr.Error.Message)
+		errType := apiErr.Error.Type
+		if errType == "" {
+			errType = apiErr.Type
+		}
+
+		errMsg := apiErr.Error.Message
+		if errMsg == "" {
+			errMsg = apiErr.Message
+		}
+
+		return nil, fmt.Errorf("API error (%s): %s", errType, errMsg)
 	}
 
 	var result response
