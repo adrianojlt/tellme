@@ -9,7 +9,7 @@ import (
 	"tellme/internal/app"
 	"tellme/internal/cli"
 	"tellme/internal/config"
-	"tellme/internal/providers/fake"
+	"tellme/internal/providers"
 )
 
 const usage = `Usage: tellme <query>
@@ -47,10 +47,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	p, err := providers.New(cfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
 	query := args[0]
 
-	a := app.New(fake.New(), cli.PrintSuggestions, cli.SelectSuggestion, cfg.Behavior.MaxOptions)
-
+	a := app.New(p, cli.PrintSuggestions, cli.SelectSuggestion, cfg.Behavior.MaxOptions)
 	if err := a.Run(context.Background(), query); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)

@@ -65,4 +65,4 @@ API keys can also be set via environment variables (take precedence over the fil
 
 ## Current state
 
-Part 5 complete: the app loads configuration from `~/.config/tellme/config.toml` with env var overrides for API keys. Interactive selection and fake provider are wired end-to-end. Real LLM integration is coming next.
+Part 7 complete: the app calls the Anthropic Messages API to generate real shell command suggestions. Set `provider = "anthropic"` in the config (or use the env var `ANTHROPIC_API_KEY`) and run with any query. OpenAI, Mistral, and Groq support is coming in Part 9.
