@@ -49,4 +49,4 @@ Configuration support is coming in Part 5. The app will read from `~/.config/tel
 
 ## Current state
 
-Part 1 complete: the app accepts a query argument and echoes it back. Full LLM integration and interactive selection are in progress.
+Part 3 complete: the app accepts a query, calls the fake provider, and displays a numbered list of suggestions with title, command, description, and risk level. Interactive selection and real LLM integration are coming next.

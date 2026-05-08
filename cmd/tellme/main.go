@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"tellme/internal/domain"
+	"tellme/internal/app"
+	"tellme/internal/cli"
 	"tellme/internal/providers/fake"
 )
 
@@ -32,16 +33,9 @@ func main() {
 
 	query := args[0]
 
-	provider := fake.New()
-	suggestions, err := provider.SuggestCommands(context.Background(), domain.SuggestRequest{
-		UserQuery: query,
-	})
-	if err != nil {
+	a := app.New(fake.New(), cli.PrintSuggestions)
+	if err := a.Run(context.Background(), query); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
-	}
-
-	for _, s := range suggestions {
-		fmt.Printf("%s: %s\n", s.Title, s.Command)
 	}
 }
