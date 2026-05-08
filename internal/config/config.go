@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"os"
+	"path/filepath"
 
 	"github.com/BurntSushi/toml"
 )
@@ -42,6 +43,7 @@ func Default() *Config {
 }
 
 func Load(path string) (*Config, error) {
+
 	cfg := Default()
 
 	f, err := os.Open(path)
@@ -52,6 +54,7 @@ func Load(path string) (*Config, error) {
 		}
 		return nil, err
 	}
+
 	defer f.Close()
 
 	if _, err := toml.NewDecoder(f).Decode(cfg); err != nil {
@@ -60,6 +63,45 @@ func Load(path string) (*Config, error) {
 
 	applyEnvOverrides(cfg)
 	return cfg, nil
+}
+
+func LoadRaw(path string) (*Config, error) {
+
+	cfg := Default()
+
+	f, err := os.Open(path)
+	if err != nil {
+
+		if errors.Is(err, os.ErrNotExist) {
+			return cfg, nil
+		}
+
+		return nil, err
+	}
+
+	defer f.Close()
+
+	if _, err := toml.NewDecoder(f).Decode(cfg); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
+}
+
+func Save(path string, cfg *Config) error {
+
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+
+	defer f.Close()
+
+	return toml.NewEncoder(f).Encode(cfg)
 }
 
 func applyEnvOverrides(cfg *Config) {

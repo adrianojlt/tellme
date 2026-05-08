@@ -39,7 +39,9 @@ Example:
 
 ## Configuration
 
-The app reads `~/.config/tellme/config.toml` on startup. If the file is missing, defaults are used.
+Run `tellme --add-llm` to interactively configure a provider - it will ask for the provider, model, and API key, then write `~/.config/tellme/config.toml` for you.
+
+Alternatively, edit the file directly. The app reads `~/.config/tellme/config.toml` on startup. If the file is missing, defaults are used.
 
 ```toml
 provider = "openai"          # openai | anthropic | mistral | groq
@@ -65,4 +67,4 @@ API keys can also be set via environment variables (take precedence over the fil
 
 ## Current state
 
-Part 7 complete: the app calls the Anthropic Messages API to generate real shell command suggestions. Set `provider = "anthropic"` in the config (or use the env var `ANTHROPIC_API_KEY`) and run with any query. OpenAI, Mistral, and Groq support is coming in Part 9.
+Part 9 complete: all four providers are supported. Set `provider` in the config to `anthropic`, `openai`, `mistral`, or `groq` and supply the matching API key.
