@@ -9,19 +9,21 @@ import (
 )
 
 type App struct {
-	provider llm.Provider
-	display  func([]domain.CommandSuggestion)
-	selectFn func([]domain.CommandSuggestion) (*domain.CommandSuggestion, error)
+	provider   llm.Provider
+	display    func([]domain.CommandSuggestion)
+	selectFn   func([]domain.CommandSuggestion) (*domain.CommandSuggestion, error)
+	maxOptions int
 }
 
-func New(p llm.Provider, display func([]domain.CommandSuggestion), selectFn func([]domain.CommandSuggestion) (*domain.CommandSuggestion, error)) *App {
-	return &App{provider: p, display: display, selectFn: selectFn}
+func New(p llm.Provider, display func([]domain.CommandSuggestion), selectFn func([]domain.CommandSuggestion) (*domain.CommandSuggestion, error), maxOptions int) *App {
+	return &App{provider: p, display: display, selectFn: selectFn, maxOptions: maxOptions}
 }
 
 func (a *App) Run(ctx context.Context, query string) error {
 
 	suggestions, err := a.provider.SuggestCommands(ctx, domain.SuggestRequest{
-		UserQuery: query,
+		UserQuery:  query,
+		MaxOptions: a.maxOptions,
 	})
 
 	if err != nil {

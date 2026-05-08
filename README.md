@@ -39,14 +39,30 @@ Example:
 
 ## Configuration
 
-Configuration support is coming in Part 5. The app will read from `~/.config/tellme/config.toml` and support:
+The app reads `~/.config/tellme/config.toml` on startup. If the file is missing, defaults are used.
 
-- LLM provider selection (openai, anthropic, mistral, groq)
-- Model selection
-- API keys (also via environment variables)
-- Max number of suggestions
-- Auto-copy to clipboard
+```toml
+provider = "openai"          # openai | anthropic | mistral | groq
+model = "gpt-4o-mini"
+
+[behavior]
+max_options = 3
+copy_after_select = false
+
+[providers.openai]
+api_key = "..."
+
+[providers.anthropic]
+api_key = "..."
+```
+
+API keys can also be set via environment variables (take precedence over the file):
+
+- `OPENAI_API_KEY`
+- `ANTHROPIC_API_KEY`
+- `MISTRAL_API_KEY`
+- `GROQ_API_KEY`
 
 ## Current state
 
-Part 4 complete: the app accepts a query, calls the fake provider, displays a numbered list of suggestions, and prompts the user to pick one by number. Entering 0 exits cleanly; a valid number prints the selected command. Invalid input re-prompts. Real LLM integration is coming next.
+Part 5 complete: the app loads configuration from `~/.config/tellme/config.toml` with env var overrides for API keys. Interactive selection and fake provider are wired end-to-end. Real LLM integration is coming next.

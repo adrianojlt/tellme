@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"tellme/internal/app"
 	"tellme/internal/cli"
+	"tellme/internal/config"
 	"tellme/internal/providers/fake"
 )
 
@@ -31,9 +33,24 @@ func main() {
 		os.Exit(1)
 	}
 
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	cfgPath := filepath.Join(homeDir, ".config", "tellme", "config.toml")
+
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
+		os.Exit(1)
+	}
+
 	query := args[0]
 
-	a := app.New(fake.New(), cli.PrintSuggestions, cli.SelectSuggestion)
+	a := app.New(fake.New(), cli.PrintSuggestions, cli.SelectSuggestion, cfg.Behavior.MaxOptions)
+
 	if err := a.Run(context.Background(), query); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
