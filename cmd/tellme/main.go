@@ -25,18 +25,19 @@ Example:
   tellme "list active docker containers"
 
 Supported providers:
-  anthropic   ANTHROPIC_API_KEY
-  openai      OPENAI_API_KEY
-  mistral     MISTRAL_API_KEY
-  groq        GROQ_API_KEY
+  anthropic    ANTHROPIC_API_KEY
+  openai       OPENAI_API_KEY
+  mistral      MISTRAL_API_KEY
+  opencode-go  (API key from opencode.ai)
 
 Config file: ~/.config/tellme/config.toml
 
 Flags:
-  --add-llm        Add or update an LLM provider (interactive)
-  --set-provider   Switch the active provider
-  --config         Show active configuration
-  --help           Show this help message
+  --add-llm          Add or update an instance (interactive)
+  --list-providers   List configured instances
+  --set-provider     Switch the active instance
+  --config           Show active configuration
+  --help             Show this help message
 `
 
 func main() {
@@ -61,50 +62,53 @@ func main() {
 	cfgPath := filepath.Join(homeDir, ".config", "tellme", "config.toml")
 
 	if len(args) == 1 && args[0] == "--add-llm" {
-
 		if err := cli.RunAddLLM(cfgPath); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
+		os.Exit(0)
+	}
 
+	if len(args) == 1 && args[0] == "--list-providers" {
+		if err := cli.RunListProviders(cfgPath); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
 		os.Exit(0)
 	}
 
 	if len(args) == 1 && args[0] == "--set-provider" {
-
 		if err := cli.RunSetProvider(cfgPath); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
-
 		os.Exit(0)
 	}
 
 	if len(args) == 1 && args[0] == "--config" {
-
 		cfg, err := config.Load(cfgPath)
-
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
 			os.Exit(1)
 		}
 
-		keyStatus := func(k string) string {
-			if k != "" {
-				return "set"
+		inst := cfg.ActiveInstance()
+		fmt.Printf("Active instance: %s\n", cfg.Active)
+		if inst != nil {
+			fmt.Printf("  Provider: %s\n", inst.Provider)
+			fmt.Printf("  Model:    %s\n", inst.Model)
+		} else {
+			fmt.Printf("  (none configured)\n")
+		}
+		fmt.Printf("\nConfigured instances: %d\n", len(cfg.Instances))
+		for _, i := range cfg.Instances {
+			active := ""
+			if i.Name == cfg.Active {
+				active = "  *"
 			}
-			return "not set"
+			fmt.Printf("  %-20s  %s / %s%s\n", i.Name, i.Provider, i.Model, active)
 		}
 
-		fmt.Printf("Active configuration\n")
-		fmt.Printf("  Provider:  %s\n", cfg.Provider)
-		fmt.Printf("  Model:     %s\n\n", cfg.Model)
-		fmt.Printf("API keys\n")
-		fmt.Printf("  Anthropic: %s\n", keyStatus(cfg.Providers.Anthropic.APIKey))
-		fmt.Printf("  OpenAI:    %s\n", keyStatus(cfg.Providers.OpenAI.APIKey))
-		fmt.Printf("  Mistral:   %s\n", keyStatus(cfg.Providers.Mistral.APIKey))
-		fmt.Printf("  Groq:      %s\n", keyStatus(cfg.Providers.Groq.APIKey))
-		
 		os.Exit(0)
 	}
 

@@ -13,28 +13,30 @@ type BehaviorConfig struct {
 	CopyAfterSelect bool `toml:"copy_after_select"`
 }
 
-type ProviderKeys struct {
-	APIKey string `toml:"api_key"`
-}
-
-type ProvidersConfig struct {
-	OpenAI    ProviderKeys `toml:"openai"`
-	Anthropic ProviderKeys `toml:"anthropic"`
-	Mistral   ProviderKeys `toml:"mistral"`
-	Groq      ProviderKeys `toml:"groq"`
+type Instance struct {
+	Name     string `toml:"name"`
+	Provider string `toml:"provider"`
+	Model    string `toml:"model"`
+	APIKey   string `toml:"api_key"`
 }
 
 type Config struct {
-	Provider  string          `toml:"provider"`
-	Model     string          `toml:"model"`
-	Behavior  BehaviorConfig  `toml:"behavior"`
-	Providers ProvidersConfig `toml:"providers"`
+	Active    string         `toml:"active"`
+	Behavior  BehaviorConfig `toml:"behavior"`
+	Instances []Instance     `toml:"instances"`
+}
+
+func (c *Config) ActiveInstance() *Instance {
+	for i := range c.Instances {
+		if c.Instances[i].Name == c.Active {
+			return &c.Instances[i]
+		}
+	}
+	return nil
 }
 
 func Default() *Config {
 	return &Config{
-		Provider: "openai",
-		Model:    "gpt-4o-mini",
 		Behavior: BehaviorConfig{
 			MaxOptions:      3,
 			CopyAfterSelect: false,
@@ -43,42 +45,15 @@ func Default() *Config {
 }
 
 func Load(path string) (*Config, error) {
-
 	cfg := Default()
 
 	f, err := os.Open(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			applyEnvOverrides(cfg)
 			return cfg, nil
 		}
 		return nil, err
 	}
-
-	defer f.Close()
-
-	if _, err := toml.NewDecoder(f).Decode(cfg); err != nil {
-		return nil, err
-	}
-
-	applyEnvOverrides(cfg)
-	return cfg, nil
-}
-
-func LoadRaw(path string) (*Config, error) {
-
-	cfg := Default()
-
-	f, err := os.Open(path)
-	if err != nil {
-
-		if errors.Is(err, os.ErrNotExist) {
-			return cfg, nil
-		}
-
-		return nil, err
-	}
-
 	defer f.Close()
 
 	if _, err := toml.NewDecoder(f).Decode(cfg); err != nil {
@@ -89,7 +64,6 @@ func LoadRaw(path string) (*Config, error) {
 }
 
 func Save(path string, cfg *Config) error {
-
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
 	}
@@ -98,23 +72,7 @@ func Save(path string, cfg *Config) error {
 	if err != nil {
 		return err
 	}
-
 	defer f.Close()
 
 	return toml.NewEncoder(f).Encode(cfg)
-}
-
-func applyEnvOverrides(cfg *Config) {
-	if v := os.Getenv("OPENAI_API_KEY"); v != "" {
-		cfg.Providers.OpenAI.APIKey = v
-	}
-	if v := os.Getenv("ANTHROPIC_API_KEY"); v != "" {
-		cfg.Providers.Anthropic.APIKey = v
-	}
-	if v := os.Getenv("MISTRAL_API_KEY"); v != "" {
-		cfg.Providers.Mistral.APIKey = v
-	}
-	if v := os.Getenv("GROQ_API_KEY"); v != "" {
-		cfg.Providers.Groq.APIKey = v
-	}
 }

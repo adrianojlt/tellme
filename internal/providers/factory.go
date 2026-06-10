@@ -6,55 +6,46 @@ import (
 	"tellme/internal/config"
 	"tellme/internal/llm"
 	"tellme/internal/providers/anthropic"
+	"tellme/internal/providers/anthropiccompat"
 	"tellme/internal/providers/groq"
 	"tellme/internal/providers/mistral"
 	"tellme/internal/providers/openai"
+	"tellme/internal/providers/openaicompat"
 )
 
+var opencodeGoMessagesModels = map[string]bool{
+	"minimax-m3":   true,
+	"minimax-m2.7": true,
+	"minimax-m2.5": true,
+	"qwen3.7-max":  true,
+	"qwen3.7-plus": true,
+	"qwen3.6-plus": true,
+}
+
 func New(cfg *config.Config) (llm.Provider, error) {
-	switch cfg.Provider {
+	inst := cfg.ActiveInstance()
+	if inst == nil {
+		return nil, fmt.Errorf("no active instance configured; run tellme --add-llm")
+	}
+	if inst.APIKey == "" {
+		return nil, fmt.Errorf("instance %q has no API key", inst.Name)
+	}
 
+	switch inst.Provider {
 	case "anthropic":
-
-		key := cfg.Providers.Anthropic.APIKey
-
-		if key == "" {
-			return nil, fmt.Errorf("ANTHROPIC_API_KEY is not set")
-		}
-
-		return anthropic.New(key, cfg.Model), nil
-
+		return anthropic.New(inst.APIKey, inst.Model), nil
 	case "openai":
-
-		key := cfg.Providers.OpenAI.APIKey
-
-		if key == "" {
-			return nil, fmt.Errorf("OPENAI_API_KEY is not set")
-		}
-
-		return openai.New(key, cfg.Model), nil
-
+		return openai.New(inst.APIKey, inst.Model), nil
 	case "mistral":
-
-		key := cfg.Providers.Mistral.APIKey
-
-		if key == "" {
-			return nil, fmt.Errorf("MISTRAL_API_KEY is not set")
-		}
-
-		return mistral.New(key, cfg.Model), nil
-
+		return mistral.New(inst.APIKey, inst.Model), nil
 	case "groq":
-
-		key := cfg.Providers.Groq.APIKey
-
-		if key == "" {
-			return nil, fmt.Errorf("GROQ_API_KEY is not set")
+		return groq.New(inst.APIKey, inst.Model), nil
+	case "opencode-go":
+		if opencodeGoMessagesModels[inst.Model] {
+			return anthropiccompat.New(inst.APIKey, inst.Model, "https://opencode.ai/zen/go/v1/messages"), nil
 		}
-
-		return groq.New(key, cfg.Model), nil
-
+		return openaicompat.New(inst.APIKey, inst.Model, "https://opencode.ai/zen/go/v1/chat/completions", openaicompat.WithLowReasoning()), nil
 	default:
-		return nil, fmt.Errorf("unknown provider %q; supported: anthropic, openai, mistral, groq", cfg.Provider)
+		return nil, fmt.Errorf("unknown provider %q", inst.Provider)
 	}
 }

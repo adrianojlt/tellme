@@ -10,7 +10,7 @@ func TestLoadMissingFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error for missing file, got: %v", err)
 	}
-	if cfg.Provider != "openai" || cfg.Model != "gpt-4o-mini" || cfg.Behavior.MaxOptions != 3 {
+	if cfg.Behavior.MaxOptions != 3 {
 		t.Fatalf("unexpected defaults: %+v", cfg)
 	}
 }
@@ -30,13 +30,28 @@ func TestLoadMalformedTOML(t *testing.T) {
 	}
 }
 
-func TestLoadEnvOverride(t *testing.T) {
-	t.Setenv("ANTHROPIC_API_KEY", "test-key")
-	cfg, err := Load("/tmp/nonexistent-tellme-config.toml")
-	if err != nil {
-		t.Fatal(err)
+func TestActiveInstance(t *testing.T) {
+	cfg := &Config{
+		Active: "gpt-4o-mini",
+		Instances: []Instance{
+			{Name: "gpt-4o-mini", Provider: "openai", Model: "gpt-4o-mini", APIKey: "k1"},
+			{Name: "glm-5", Provider: "opencode-go", Model: "glm-5", APIKey: "k2"},
+		},
 	}
-	if cfg.Providers.Anthropic.APIKey != "test-key" {
-		t.Fatalf("expected env override, got %q", cfg.Providers.Anthropic.APIKey)
+
+	inst := cfg.ActiveInstance()
+	if inst == nil || inst.Provider != "openai" {
+		t.Fatalf("expected openai instance, got %v", inst)
+	}
+
+	cfg.Active = "glm-5"
+	inst = cfg.ActiveInstance()
+	if inst == nil || inst.Provider != "opencode-go" {
+		t.Fatalf("expected opencode-go instance, got %v", inst)
+	}
+
+	cfg.Active = "nonexistent"
+	if cfg.ActiveInstance() != nil {
+		t.Fatal("expected nil for unknown active")
 	}
 }

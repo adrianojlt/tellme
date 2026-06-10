@@ -16,6 +16,43 @@ tellme "list active docker containers"
 go build -o tellme ./cmd/tellme
 ```
 
+## Install
+
+### Option 1: go install
+
+From inside the project directory, install the binary into `~/go/bin`:
+
+```bash
+go install ./cmd/tellme
+```
+
+Make sure `~/go/bin` is in your `$PATH`. Add this to your `~/.zshrc` or `~/.bashrc` if it isn't already:
+
+```bash
+export PATH="$HOME/go/bin:$PATH"
+```
+
+Then reload your shell and run from anywhere:
+
+```bash
+tellme "your question here"
+```
+
+### Option 2: Copy binary to /usr/local/bin
+
+Build first, then copy:
+
+```bash
+go build -o tellme ./cmd/tellme
+sudo cp tellme /usr/local/bin/tellme
+```
+
+Then run from anywhere:
+
+```bash
+tellme "your question here"
+```
+
 ## Run
 
 ```bash
@@ -79,3 +116,8 @@ API keys can also be set via environment variables (take precedence over the fil
 - `ANTHROPIC_API_KEY`
 - `MISTRAL_API_KEY`
 - `GROQ_API_KEY`
+
+## TODO
+- Add providers has profiles, so the user can choose which one to use. 
+- Make the command available through 'brew install tellme'
+- Make the command available through 'apt get install tellme'

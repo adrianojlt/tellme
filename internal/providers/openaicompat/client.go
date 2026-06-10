@@ -13,18 +13,31 @@ import (
 )
 
 type Client struct {
-	baseURL string
-	apiKey  string
-	model   string
-	http    *http.Client
+	baseURL         string
+	apiKey          string
+	model           string
+	reasoningEffort string
+	disableThinking bool
+	http            *http.Client
 }
 
-func New(apiKey, model, baseURL string) *Client {
-	return &Client{
+func New(apiKey, model, baseURL string, opts ...func(*Client)) *Client {
+	c := &Client{
 		baseURL: baseURL,
 		apiKey:  apiKey,
 		model:   model,
 		http:    &http.Client{},
+	}
+	for _, o := range opts {
+		o(c)
+	}
+	return c
+}
+
+func WithLowReasoning() func(*Client) {
+	return func(c *Client) {
+		c.reasoningEffort = "low"
+		c.disableThinking = true
 	}
 }
 
@@ -37,10 +50,17 @@ type responseFormat struct {
 	Type string `json:"type"`
 }
 
+type thinkingConfig struct {
+	Type string `json:"type"`
+}
+
 type request struct {
-	Model          string         `json:"model"`
-	Messages       []message      `json:"messages"`
-	ResponseFormat responseFormat `json:"response_format"`
+	Model           string          `json:"model"`
+	MaxTokens       int             `json:"max_tokens"`
+	Messages        []message       `json:"messages"`
+	ResponseFormat  responseFormat  `json:"response_format"`
+	ReasoningEffort string          `json:"reasoning_effort,omitempty"`
+	Thinking        *thinkingConfig `json:"thinking,omitempty"`
 }
 
 type choice struct {
@@ -68,14 +88,25 @@ func (c *Client) SuggestCommands(ctx context.Context, req domain.SuggestRequest)
 
 	defer cancel()
 
-	body, err := json.Marshal(request{
-		Model: c.model,
+	r := request{
+		Model:     c.model,
+		MaxTokens: 1024,
 		Messages: []message{
 			{Role: "system", Content: prompt.SystemPrompt()},
 			{Role: "user", Content: prompt.UserPrompt(req)},
 		},
 		ResponseFormat: responseFormat{Type: "json_object"},
-	})
+	}
+
+	if c.reasoningEffort != "" {
+		r.ReasoningEffort = c.reasoningEffort
+	}
+
+	if c.disableThinking {
+		r.Thinking = &thinkingConfig{Type: "disabled"}
+	}
+
+	body, err := json.Marshal(r)
 
 	if err != nil {
 		return nil, err
