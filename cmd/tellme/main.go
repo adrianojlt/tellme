@@ -36,6 +36,7 @@ Flags:
   --add-llm          Add or update an instance (interactive)
   --list-providers   List configured instances
   --set-provider     Switch the active instance
+  --set-os           Set the target operating system
   --config           Show active configuration
   --help             Show this help message
 `
@@ -63,6 +64,14 @@ func main() {
 
 	if len(args) == 1 && args[0] == "--add-llm" {
 		if err := cli.RunAddLLM(cfgPath); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	if len(args) == 1 && args[0] == "--set-os" {
+		if err := cli.RunSetOS(cfgPath); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
@@ -100,6 +109,11 @@ func main() {
 		} else {
 			fmt.Printf("  (none configured)\n")
 		}
+		osDisplay := cfg.OS
+		if osDisplay == "" {
+			osDisplay = "(not set)"
+		}
+		fmt.Printf("OS: %s\n", osDisplay)
 		fmt.Printf("\nConfigured instances: %d\n", len(cfg.Instances))
 		for _, i := range cfg.Instances {
 			active := ""
@@ -131,7 +145,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	a := app.New(p, cli.PrintSuggestions, cli.SelectSuggestion, cfg.Behavior.MaxOptions, clipboard.Copy, cfg.Behavior.CopyAfterSelect)
+	a := app.New(p, cli.PrintSuggestions, cli.SelectSuggestion, cfg.Behavior.MaxOptions, clipboard.Copy, cfg.Behavior.CopyAfterSelect, cfg.OS)
 	if err := a.Run(context.Background(), query); err != nil {
 		switch {
 		case errors.Is(err, context.DeadlineExceeded):

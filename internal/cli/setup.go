@@ -64,6 +64,45 @@ var availableProviders = []providerSetup{
 	},
 }
 
+var availableOS = []string{"macos", "linux", "windows"}
+
+func RunSetOS(cfgPath string) error {
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		return fmt.Errorf("loading config: %w", err)
+	}
+
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Println("Choose operating system:")
+	for i, name := range availableOS {
+		active := ""
+		if name == cfg.OS {
+			active = "  (active)"
+		}
+		fmt.Printf("  %d. %s%s\n", i+1, name, active)
+	}
+
+	for {
+		fmt.Printf("Enter number (1-%d): ", len(availableOS))
+		line, _ := reader.ReadString('\n')
+		n, err := strconv.Atoi(strings.TrimSpace(line))
+		if err != nil || n < 1 || n > len(availableOS) {
+			fmt.Printf("Invalid input. Enter a number between 1 and %d.\n", len(availableOS))
+			continue
+		}
+		cfg.OS = availableOS[n-1]
+		break
+	}
+
+	if err := config.Save(cfgPath, cfg); err != nil {
+		return fmt.Errorf("saving config: %w", err)
+	}
+
+	fmt.Printf("OS set to %s.\n", cfg.OS)
+	return nil
+}
+
 func RunListProviders(cfgPath string) error {
 	cfg, err := config.Load(cfgPath)
 	if err != nil {

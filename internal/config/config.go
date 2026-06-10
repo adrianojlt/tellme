@@ -22,6 +22,7 @@ type Instance struct {
 
 type Config struct {
 	Active    string         `toml:"active"`
+	OS        string         `toml:"os"`
 	Behavior  BehaviorConfig `toml:"behavior"`
 	Instances []Instance     `toml:"instances"`
 }
