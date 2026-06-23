@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go mod *)",
+      "Bash(go build *)",
+      "Bash(go run *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(go get *)",
+      "Bash(CONFIG_PATH=/tmp/bad.toml go run ./cmd/tellme \"test\")",
+      "Bash(go test *)",
+      "Bash(mkdir -p ~/.config/tellme)",
+      "Bash(printf 'provider = \"anthropic\"\\\\nmodel = \"claude-haiku-4-5-20251001\"\\\\n')"
+    ]
+  }
+}

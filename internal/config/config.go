@@ -11,6 +11,7 @@ import (
 type BehaviorConfig struct {
 	MaxOptions      int  `toml:"max_options"`
 	CopyAfterSelect bool `toml:"copy_after_select"`
+	MaxHistory      int  `toml:"max_history"`
 }
 
 type Instance struct {
@@ -41,11 +42,13 @@ func Default() *Config {
 		Behavior: BehaviorConfig{
 			MaxOptions:      3,
 			CopyAfterSelect: false,
+			MaxHistory:      30,
 		},
 	}
 }
 
 func Load(path string) (*Config, error) {
+
 	cfg := Default()
 
 	f, err := os.Open(path)
@@ -65,6 +68,7 @@ func Load(path string) (*Config, error) {
 }
 
 func Save(path string, cfg *Config) error {
+
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
 	}
@@ -73,6 +77,7 @@ func Save(path string, cfg *Config) error {
 	if err != nil {
 		return err
 	}
+	
 	defer f.Close()
 
 	return toml.NewEncoder(f).Encode(cfg)

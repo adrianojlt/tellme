@@ -61,6 +61,7 @@ func main() {
 	}
 
 	cfgPath := filepath.Join(homeDir, ".config", "tellme", "config.toml")
+	storePath := filepath.Join(homeDir, ".config", "tellme", "store.json")
 
 	if len(args) == 1 && args[0] == "--add-llm" {
 		if err := cli.RunAddLLM(cfgPath); err != nil {
@@ -126,6 +127,52 @@ func main() {
 		os.Exit(0)
 	}
 
+	if cli.IsSubcommand(args) {
+
+		var err error
+
+		switch args[0] {
+		case "history":
+			err = cli.RunHistory(cfgPath)
+		case "favorites":
+			err = cli.RunFavorites(cfgPath)
+		}
+
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		os.Exit(0)
+	}
+
+	// List subcommands: `tellme list` (names) and `tellme list <name>`. Only
+	// arity 1 and 2 are subcommands; a 3+ token `list ...` falls through to
+	// query handling. In practice a query arrives as one quoted arg, so the
+	// two-token `tellme list foo` is treated as the named-list subcommand by
+	// design.
+	if cli.IsListNames(args) {
+		if err := cli.RunListNames(cfgPath); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	if cli.IsListNamed(args) {
+		if err := cli.RunList(cfgPath, args[1]); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	if len(args) == 1 && !strings.Contains(args[0], " ") {
+		fmt.Fprintf(os.Stderr, "Unknown argument: %s\n", args[0])
+		fmt.Fprintf(os.Stderr, "Run 'tellme --help' for usage.\n")
+		os.Exit(1)
+	}
+
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
@@ -145,8 +192,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	a := app.New(p, cli.PrintSuggestions, cli.SelectSuggestion, cfg.Behavior.MaxOptions, clipboard.Copy, cfg.Behavior.CopyAfterSelect, cfg.OS)
+	a := app.New(p, cli.PrintSuggestions, cli.SelectSuggestion, cfg.Behavior.MaxOptions, clipboard.Copy, cfg.Behavior.CopyAfterSelect, cfg.OS, storePath)
 	if err := a.Run(context.Background(), query); err != nil {
+
 		switch {
 		case errors.Is(err, context.DeadlineExceeded):
 			fmt.Fprintln(os.Stderr, "Request timed out. Check your connection or try again.")
@@ -155,6 +203,7 @@ func main() {
 		default:
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		}
+
 		os.Exit(1)
 	}
 }

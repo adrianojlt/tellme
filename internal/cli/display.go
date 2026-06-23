@@ -31,3 +31,17 @@ func PrintSuggestions(suggestions []domain.CommandSuggestion) {
 
 	fmt.Println("0 - exit")
 }
+
+// PrintEntriesCompact prints suggestions in reverse order showing only the
+// index and command - used for history/favorites/list views.
+func PrintEntriesCompact(suggestions []domain.CommandSuggestion) {
+
+	fmt.Println()
+
+	for i := len(suggestions) - 1; i >= 0; i-- {
+		fmt.Printf("%d. $ %s\n", i+1, suggestions[i].Command)
+	}
+
+	fmt.Println()
+	fmt.Println("0 - exit")
+}

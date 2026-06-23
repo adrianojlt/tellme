@@ -30,6 +30,49 @@ func TestLoadMalformedTOML(t *testing.T) {
 	}
 }
 
+func TestDefaultMaxHistory(t *testing.T) {
+	cfg := Default()
+	if cfg.Behavior.MaxHistory != 30 {
+		t.Fatalf("expected default MaxHistory 30, got %d", cfg.Behavior.MaxHistory)
+	}
+}
+
+func TestLoadMaxHistoryOmitted(t *testing.T) {
+	f, err := os.CreateTemp("", "omit-*.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(f.Name())
+	f.WriteString("[behavior]\nmax_options = 5\n")
+	f.Close()
+
+	cfg, err := Load(f.Name())
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if cfg.Behavior.MaxHistory != 30 {
+		t.Fatalf("expected MaxHistory 30 when omitted, got %d", cfg.Behavior.MaxHistory)
+	}
+}
+
+func TestLoadMaxHistoryExplicit(t *testing.T) {
+	f, err := os.CreateTemp("", "explicit-*.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(f.Name())
+	f.WriteString("[behavior]\nmax_history = 50\n")
+	f.Close()
+
+	cfg, err := Load(f.Name())
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if cfg.Behavior.MaxHistory != 50 {
+		t.Fatalf("expected MaxHistory 50, got %d", cfg.Behavior.MaxHistory)
+	}
+}
+
 func TestActiveInstance(t *testing.T) {
 	cfg := &Config{
 		Active: "gpt-4o-mini",

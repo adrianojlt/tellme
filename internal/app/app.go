@@ -4,13 +4,16 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 
 	"tellme/internal/domain"
 	"tellme/internal/llm"
+	"tellme/internal/store"
 )
 
 type App struct {
@@ -21,6 +24,7 @@ type App struct {
 	maxOptions      int
 	copyAfterSelect bool
 	osHint          string
+	storePath       string
 }
 
 func New(
@@ -31,6 +35,7 @@ func New(
 	copyFn func(string) error,
 	copyAfterSelect bool,
 	osHint string,
+	storePath string,
 ) *App {
 	return &App{
 		provider:        p,
@@ -40,6 +45,7 @@ func New(
 		copyFn:          copyFn,
 		copyAfterSelect: copyAfterSelect,
 		osHint:          osHint,
+		storePath:       storePath,
 	}
 }
 
@@ -66,19 +72,22 @@ func (a *App) Run(ctx context.Context, query string) error {
 	}
 
 	fmt.Printf("Selected: %s\n", selected.Command)
-	a.handlePostSelect(selected.Command)
-
-	return nil
+	return a.runSelected(os.Stdin, query, selected.Title, selected.Command)
 }
 
-func (a *App) handlePostSelect(command string) {
-	reader := bufio.NewReader(os.Stdin)
+func (a *App) RunSelected(command string) error {
+	return a.runSelected(os.Stdin, "", "", command)
+}
+
+func (a *App) runSelected(r io.Reader, query, title, command string) error {
+	reader := bufio.NewReader(r)
 
 	fmt.Print("Execute command? (y/n): ")
 	line, _ := reader.ReadString('\n')
 	if strings.TrimSpace(line) == "y" {
 		a.runCommand(command)
-		return
+		a.record(query, title, command)
+		return nil
 	}
 
 	if a.copyAfterSelect {
@@ -87,7 +96,7 @@ func (a *App) handlePostSelect(command string) {
 		} else {
 			fmt.Println("Copied to clipboard.")
 		}
-		return
+		return nil
 	}
 
 	fmt.Print("Copy to clipboard? (y/n): ")
@@ -99,6 +108,8 @@ func (a *App) handlePostSelect(command string) {
 			fmt.Println("Copied to clipboard.")
 		}
 	}
+
+	return nil
 }
 
 func (a *App) runCommand(command string) {
@@ -113,5 +124,32 @@ func (a *App) runCommand(command string) {
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		fmt.Printf("Error: %v\n", err)
+	}
+}
+
+// record appends the executed command to the history store. A store load/save
+// error is reported to stderr but is non-fatal: it never changes the executed
+// command's outcome. An empty storePath disables recording.
+func (a *App) record(query, title, command string) {
+
+	if a.storePath == "" {
+		return
+	}
+
+	s, err := store.Load(a.storePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "history: %v\n", err)
+		return
+	}
+
+	s.AddHistory(store.Entry{
+		Query:     query,
+		Command:   command,
+		Title:     title,
+		Timestamp: time.Now().UTC(),
+	})
+
+	if err := store.Save(a.storePath, s); err != nil {
+		fmt.Fprintf(os.Stderr, "history: %v\n", err)
 	}
 }
