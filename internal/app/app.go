@@ -80,6 +80,7 @@ func (a *App) RunSelected(command string) error {
 }
 
 func (a *App) runSelected(r io.Reader, query, title, command string) error {
+
 	reader := bufio.NewReader(r)
 
 	fmt.Print("Execute command? (y/n): ")

@@ -47,12 +47,6 @@ go build -o tellme ./cmd/tellme
 sudo cp tellme /usr/local/bin/tellme
 ```
 
-Then run from anywhere:
-
-```bash
-tellme "your question here"
-```
-
 ## Run
 
 ```bash
@@ -68,6 +62,7 @@ go run ./cmd/tellme "your question here"
 ```
 Usage: tellme <query>
        tellme [flags]
+       tellme <subcommand>
 
 Ask a natural language question and get shell command suggestions.
 
@@ -75,49 +70,85 @@ Example:
   tellme "list active docker containers"
 
 Supported providers:
-  anthropic   ANTHROPIC_API_KEY
-  openai      OPENAI_API_KEY
-  mistral     MISTRAL_API_KEY
-  groq        GROQ_API_KEY
+  anthropic    ANTHROPIC_API_KEY
+  openai       OPENAI_API_KEY
+  mistral      MISTRAL_API_KEY
+  opencode-go  (API key from opencode.ai)
 
 Config file: ~/.config/tellme/config.toml
 
 Flags:
-  --add-llm        Add or update an LLM provider (interactive)
-  --set-provider   Switch the active provider
-  --config         Show active configuration
-  --help           Show this help message
+  --add-llm          Add or update an instance (interactive)
+  --list-providers   List configured instances
+  --set-provider     Switch the active instance
+  --set-os           Set the target operating system
+  --config           Show active configuration
+  --help             Show this help message
+
+Subcommands:
+  history            Browse and re-run recent commands
+  favorites          Browse and re-run saved favorites
+  list               List all saved lists
+  list <name>        Browse and re-run a named list
 ```
 
 ## Configuration
 
-Run `tellme --add-llm` to interactively configure a provider - it will ask for the provider, model, and API key, then write `~/.config/tellme/config.toml` for you.
+Run `tellme --add-llm` to interactively configure a provider instance. It will ask for a name, provider, model, and API key, then write `~/.config/tellme/config.toml`.
 
-Alternatively, edit the file directly. The app reads `~/.config/tellme/config.toml` on startup. If the file is missing, defaults are used.
+Use `--list-providers` to see all configured instances and `--set-provider` to switch between them. Use `--set-os` to tell tellme which OS to target when generating commands.
+
+Example config with multiple instances:
 
 ```toml
-provider = "openai"          # openai | anthropic | mistral | groq
-model = "gpt-4o-mini"
+active = "work-claude"
+os = "macos"
 
 [behavior]
 max_options = 3
 copy_after_select = false
+max_history = 30
 
-[providers.openai]
+[[instances]]
+name = "work-claude"
+provider = "anthropic"
+model = "claude-3-5-haiku-20241022"
 api_key = "..."
 
-[providers.anthropic]
+[[instances]]
+name = "personal-gpt"
+provider = "openai"
+model = "gpt-4o-mini"
 api_key = "..."
 ```
 
-API keys can also be set via environment variables (take precedence over the file):
+API keys can also be set via environment variables (take precedence over the config file):
 
-- `OPENAI_API_KEY`
 - `ANTHROPIC_API_KEY`
+- `OPENAI_API_KEY`
 - `MISTRAL_API_KEY`
-- `GROQ_API_KEY`
+
+## History and Lists
+
+After running a command, tellme saves it to history (capped at `max_history` entries).
+
+```bash
+tellme history       # browse recent commands, re-run or save one
+tellme favorites     # browse saved favorites
+tellme list          # show all named lists
+tellme list <name>   # browse a named list
+```
+
+From the history view you can:
+- Re-run or copy a command
+- Add it to Favorites
+- Add it to a named list (or create a new one)
+
+From the favorites or list view you can:
+- Re-run or copy a command
+- Remove it from the list
 
 ## TODO
-- Add providers has profiles, so the user can choose which one to use. 
-- Make the command available through 'brew install tellme'
-- Make the command available through 'apt get install tellme'
+
+- Make the command available through `brew install tellme`
+- Make the command available through `apt get install tellme`
