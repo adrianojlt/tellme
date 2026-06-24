@@ -30,7 +30,7 @@ func ParseResponse(raw string) ([]domain.CommandSuggestion, error) {
 	}
 
 	if len(resp.Suggestions) == 0 {
-		return nil, fmt.Errorf("%w", ErrNoSuggestions)
+		return nil, ErrNoSuggestions
 	}
 
 	return resp.Suggestions, nil

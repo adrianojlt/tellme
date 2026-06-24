@@ -80,13 +80,17 @@ func (a *App) RunSelected(command string) error {
 }
 
 func (a *App) runSelected(r io.Reader, query, title, command string) error {
-
 	reader := bufio.NewReader(r)
 
 	fmt.Print("Execute command? (y/n): ")
-	line, _ := reader.ReadString('\n')
+	line, err := reader.ReadString('\n')
+	if err != nil && err != io.EOF {
+		return fmt.Errorf("reading input: %w", err)
+	}
 	if strings.TrimSpace(line) == "y" {
-		a.runCommand(command)
+		if err := a.runCommand(command); err != nil {
+			return err
+		}
 		a.record(query, title, command)
 		return nil
 	}
@@ -101,7 +105,10 @@ func (a *App) runSelected(r io.Reader, query, title, command string) error {
 	}
 
 	fmt.Print("Copy to clipboard? (y/n): ")
-	line, _ = reader.ReadString('\n')
+	line, err = reader.ReadString('\n')
+	if err != nil && err != io.EOF {
+		return fmt.Errorf("reading input: %w", err)
+	}
 	if strings.TrimSpace(line) == "y" {
 		if err := a.copyFn(command); err != nil {
 			fmt.Printf("Clipboard error: %v\n", err)
@@ -113,7 +120,7 @@ func (a *App) runSelected(r io.Reader, query, title, command string) error {
 	return nil
 }
 
-func (a *App) runCommand(command string) {
+func (a *App) runCommand(command string) error {
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
 		cmd = exec.Command("cmd", "/c", command)
@@ -123,9 +130,7 @@ func (a *App) runCommand(command string) {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		fmt.Printf("Error: %v\n", err)
-	}
+	return cmd.Run()
 }
 
 // record appends the executed command to the history store. A store load/save

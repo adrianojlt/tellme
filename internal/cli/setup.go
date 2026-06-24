@@ -84,13 +84,19 @@ func RunSetOS(cfgPath string) error {
 	}
 
 	for {
+
 		fmt.Printf("Enter number (1-%d): ", len(availableOS))
-		line, _ := reader.ReadString('\n')
-		n, err := strconv.Atoi(strings.TrimSpace(line))
-		if err != nil || n < 1 || n > len(availableOS) {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("reading input: %w", err)
+		}
+
+		n, parseErr := strconv.Atoi(strings.TrimSpace(line))
+		if parseErr != nil || n < 1 || n > len(availableOS) {
 			fmt.Printf("Invalid input. Enter a number between 1 and %d.\n", len(availableOS))
 			continue
 		}
+
 		cfg.OS = availableOS[n-1]
 		break
 	}
@@ -104,6 +110,7 @@ func RunSetOS(cfgPath string) error {
 }
 
 func RunListProviders(cfgPath string) error {
+
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
@@ -127,6 +134,7 @@ func RunListProviders(cfgPath string) error {
 }
 
 func RunSetProvider(cfgPath string) error {
+
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
@@ -148,14 +156,21 @@ func RunSetProvider(cfgPath string) error {
 	}
 
 	var chosen config.Instance
+
 	for {
+		
 		fmt.Printf("Enter number (1-%d): ", len(cfg.Instances))
-		line, _ := reader.ReadString('\n')
-		n, err := strconv.Atoi(strings.TrimSpace(line))
-		if err != nil || n < 1 || n > len(cfg.Instances) {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("reading input: %w", err)
+		}
+
+		n, parseErr := strconv.Atoi(strings.TrimSpace(line))
+		if parseErr != nil || n < 1 || n > len(cfg.Instances) {
 			fmt.Printf("Invalid input. Enter a number between 1 and %d.\n", len(cfg.Instances))
 			continue
 		}
+
 		chosen = cfg.Instances[n-1]
 		break
 	}
@@ -171,6 +186,7 @@ func RunSetProvider(cfgPath string) error {
 }
 
 func RunAddLLM(cfgPath string) error {
+
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
@@ -185,21 +201,33 @@ func RunAddLLM(cfgPath string) error {
 
 	var chosen providerSetup
 	for {
+
 		fmt.Printf("Enter number (1-%d): ", len(availableProviders))
-		line, _ := reader.ReadString('\n')
-		n, err := strconv.Atoi(strings.TrimSpace(line))
-		if err != nil || n < 1 || n > len(availableProviders) {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("reading input: %w", err)
+		}
+
+		n, parseErr := strconv.Atoi(strings.TrimSpace(line))
+		if parseErr != nil || n < 1 || n > len(availableProviders) {
 			fmt.Printf("Invalid input. Enter a number between 1 and %d.\n", len(availableProviders))
 			continue
 		}
+
 		chosen = availableProviders[n-1]
 		break
 	}
 
-	model := pickModel(reader, chosen)
+	model, err := pickModel(reader, chosen)
+	if err != nil {
+		return fmt.Errorf("picking model: %w", err)
+	}
 
 	fmt.Print("API key: ")
-	keyLine, _ := reader.ReadString('\n')
+	keyLine, err := reader.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("reading input: %w", err)
+	}
 	apiKey := strings.TrimSpace(keyLine)
 	if apiKey == "" {
 		return fmt.Errorf("API key cannot be empty")
@@ -234,15 +262,22 @@ func RunAddLLM(cfgPath string) error {
 	return nil
 }
 
-func pickModel(reader *bufio.Reader, p providerSetup) string {
+func pickModel(reader *bufio.Reader, p providerSetup) (string, error) {
+
 	if len(p.presetModels) == 0 {
+
 		fmt.Printf("Model (e.g. %s): ", p.defaultModel)
-		line, _ := reader.ReadString('\n')
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			return "", fmt.Errorf("reading input: %w", err)
+		}
+
 		model := strings.TrimSpace(line)
 		if model == "" {
-			return p.defaultModel
+			return p.defaultModel, nil
 		}
-		return model
+
+		return model, nil
 	}
 
 	fmt.Println("Choose a model:")
@@ -252,25 +287,37 @@ func pickModel(reader *bufio.Reader, p providerSetup) string {
 	fmt.Printf("  c. Custom model ID\n")
 
 	for {
+
 		fmt.Printf("Enter number or 'c': ")
-		line, _ := reader.ReadString('\n')
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			return "", fmt.Errorf("reading input: %w", err)
+		}
+
 		input := strings.TrimSpace(line)
 
 		if input == "c" {
+
 			fmt.Printf("Model ID (e.g. %s): ", p.defaultModel)
-			custom, _ := reader.ReadString('\n')
+			custom, err := reader.ReadString('\n')
+			if err != nil {
+				return "", fmt.Errorf("reading input: %w", err)
+			}
+
 			model := strings.TrimSpace(custom)
 			if model == "" {
-				return p.defaultModel
+				return p.defaultModel, nil
 			}
-			return model
+
+			return model, nil
 		}
 
-		n, err := strconv.Atoi(input)
-		if err != nil || n < 1 || n > len(p.presetModels) {
+		n, parseErr := strconv.Atoi(input)
+		if parseErr != nil || n < 1 || n > len(p.presetModels) {
 			fmt.Printf("Invalid input.\n")
 			continue
 		}
-		return p.presetModels[n-1].id
+
+		return p.presetModels[n-1].id, nil
 	}
 }

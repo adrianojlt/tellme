@@ -13,6 +13,9 @@ import (
 	"tellme/internal/providers/openaicompat"
 )
 
+// opencodeGoMessagesModels lists opencode-go models that use the Anthropic
+// Messages API format. All other opencode-go models use the OpenAI Chat
+// Completions format.
 var opencodeGoMessagesModels = map[string]bool{
 	"minimax-m3":   true,
 	"minimax-m2.7": true,

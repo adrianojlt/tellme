@@ -59,6 +59,8 @@ func Load(path string) (*Store, error) {
 // front (bumped to top). History is capped at maxHistory, dropping oldest.
 func (s *Store) AddHistory(e Entry) {
 
+	// [:0:0] creates a nil-capacity slice sharing no backing array, so appends
+	// below never mutate the original History slice.
 	filtered := s.History[:0:0]
 	for _, h := range s.History {
 		if h.Command != e.Command {
@@ -96,6 +98,7 @@ func (s *Store) AddToList(name string, e Entry) error {
 func (s *Store) RemoveFromList(name, command string) {
 
 	entries := s.Lists[name]
+	// [:0:0] - see AddHistory for rationale.
 	filtered := entries[:0:0]
 
 	for _, e := range entries {
