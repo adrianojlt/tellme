@@ -125,62 +125,110 @@ func TestIsSubcommandExactMatch(t *testing.T) {
 	}
 }
 
-func TestRunListingSelectsAndReRuns(t *testing.T) {
+// noopActions returns a ListActions whose callbacks all record their command
+// into the corresponding string pointer (nil for unused actions). Tests can
+// pass a single set of pointers and read what was invoked.
+func noopActions() (ListActions, *string, *string, *string, *string) {
+
+	var ran, ranAndCopied, copied, removed string
+
+	actions := ListActions{
+		Run:        func(c string) error { ran = c; return nil },
+		RunAndCopy: func(c string) error { ranAndCopied = c; return nil },
+		Copy:       func(c string) error { copied = c; return nil },
+		Remove:     func(c string) error { removed = c; return nil },
+	}
+
+	return actions, &ran, &ranAndCopied, &copied, &removed
+}
+
+func TestRunListingSelectsAndRuns(t *testing.T) {
 	entries := []store.Entry{
 		{Title: "list files", Command: "ls -la"},
 		{Title: "disk usage", Command: "df -h"},
 	}
 
-	var ran string
-	reRun := func(command string) error {
-		ran = command
-		return nil
-	}
-	noRemove := func(string) error { return nil }
+	actions, ran, _, _, _ := noopActions()
 
-	// Select index 2 (df -h), then action 1 (run/copy).
-	err := runListing(strings.NewReader("2\n1\n"), entries, "history", reRun, noRemove)
+	// Select index 2 (df -h), then action 1 (Run).
+	err := runListing(strings.NewReader("2\n1\n"), entries, "history", actions)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if ran != "df -h" {
-		t.Errorf("expected re-run of %q, got %q", "df -h", ran)
+	if *ran != "df -h" {
+		t.Errorf("expected Run of %q, got %q", "df -h", *ran)
 	}
 }
 
-func TestRunListingExitSelectionDoesNotReRun(t *testing.T) {
+func TestRunListingSelectsRunsAndCopies(t *testing.T) {
 	entries := []store.Entry{{Title: "list files", Command: "ls -la"}}
 
-	called := false
-	reRun := func(command string) error {
-		called = true
-		return nil
-	}
-	noRemove := func(string) error { return nil }
+	actions, _, ranAndCopied, _, _ := noopActions()
 
-	if err := runListing(strings.NewReader("0\n"), entries, "history", reRun, noRemove); err != nil {
+	// Select item 1, then action 2 (Run and Copy).
+	if err := runListing(strings.NewReader("1\n2\n"), entries, "favorites", actions); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if called {
-		t.Error("expected reRun not to be called on exit selection")
+	if *ranAndCopied != "ls -la" {
+		t.Errorf("expected RunAndCopy of %q, got %q", "ls -la", *ranAndCopied)
+	}
+}
+
+func TestRunListingSelectsAndCopies(t *testing.T) {
+	entries := []store.Entry{{Title: "list files", Command: "ls -la"}}
+
+	actions, _, _, copied, _ := noopActions()
+
+	// Select item 1, then action 3 (Copy).
+	if err := runListing(strings.NewReader("1\n3\n"), entries, "favorites", actions); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if *copied != "ls -la" {
+		t.Errorf("expected Copy of %q, got %q", "ls -la", *copied)
+	}
+}
+
+func TestRunListingSelectsAndRemoves(t *testing.T) {
+	entries := []store.Entry{{Title: "list files", Command: "ls -la"}}
+
+	actions, _, _, _, removed := noopActions()
+
+	// Select item 1, then action 4 (Remove).
+	if err := runListing(strings.NewReader("1\n4\n"), entries, "favorites", actions); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if *removed != "ls -la" {
+		t.Errorf("expected Remove of %q, got %q", "ls -la", *removed)
+	}
+}
+
+func TestRunListingExitSelectionDoesNotInvokeAnyAction(t *testing.T) {
+	entries := []store.Entry{{Title: "list files", Command: "ls -la"}}
+
+	actions, ran, ranAndCopied, copied, removed := noopActions()
+
+	if err := runListing(strings.NewReader("0\n"), entries, "history", actions); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if *ran != "" || *ranAndCopied != "" || *copied != "" || *removed != "" {
+		t.Errorf("expected no action invoked, got run=%q runAndCopy=%q copy=%q remove=%q",
+			*ran, *ranAndCopied, *copied, *removed)
 	}
 }
 
 func TestRunListingEmptyPrintsFriendlyMessageAndReturnsNil(t *testing.T) {
-	called := false
-	reRun := func(command string) error {
-		called = true
-		return nil
-	}
-	noRemove := func(string) error { return nil }
+	actions, ran, _, _, _ := noopActions()
 
-	if err := runListing(strings.NewReader(""), nil, "favorites", reRun, noRemove); err != nil {
+	if err := runListing(strings.NewReader(""), nil, "favorites", actions); err != nil {
 		t.Fatalf("expected nil error for empty listing, got %v", err)
 	}
 
-	if called {
-		t.Error("expected reRun not to be called for empty listing")
+	if *ran != "" {
+		t.Errorf("expected Run not to be called for empty listing, got %q", *ran)
 	}
 }

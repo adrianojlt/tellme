@@ -77,13 +77,14 @@ func RunList(cfgPath, name string) error {
 		return err
 	}
 
-	removeFn := func(command string) error {
+	actions := listRunnerActions(cfg, storePath)
+	actions.Remove = func(command string) error {
 		s.RemoveFromList(name, command)
 		return store.Save(storePath, s)
 	}
 
 	return lookupList(s.Lists, name, func() error {
-		return runListing(os.Stdin, s.Lists[name], name, reRunner(cfg, storePath), removeFn)
+		return runListing(os.Stdin, s.Lists[name], name, actions)
 	})
 }
 

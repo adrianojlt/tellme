@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -8,6 +9,8 @@ import (
 
 	"tellme/internal/store"
 )
+
+var errClipboard = errors.New("clipboard unavailable")
 
 func newTestApp(copyFn func(string) error, copyAfterSelect bool) *App {
 	return &App{
@@ -153,5 +156,94 @@ func TestRunSelectedNoRecordWhenNotExecuted(t *testing.T) {
 	}
 	if len(s.History) != 0 {
 		t.Errorf("expected no history entries, got %d", len(s.History))
+	}
+}
+
+func TestRunCommandExecutesAndRecords(t *testing.T) {
+	storePath := filepath.Join(t.TempDir(), "store.json")
+	var copied []string
+	a := newTestApp(func(c string) error {
+		copied = append(copied, c)
+		return nil
+	}, false)
+	a.storePath = storePath
+
+	if err := a.RunCommand("true"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(copied) != 0 {
+		t.Errorf("expected copyFn not called, got %d calls", len(copied))
+	}
+
+	s, err := store.Load(storePath)
+	if err != nil {
+		t.Fatalf("load store: %v", err)
+	}
+	if len(s.History) != 1 {
+		t.Fatalf("expected 1 history entry, got %d", len(s.History))
+	}
+	if s.History[0].Command != "true" {
+		t.Errorf("expected history command %q, got %q", "true", s.History[0].Command)
+	}
+}
+
+func TestRunAndCopyCommandExecutesRecordsAndCopies(t *testing.T) {
+	storePath := filepath.Join(t.TempDir(), "store.json")
+	var copied []string
+	a := newTestApp(func(c string) error {
+		copied = append(copied, c)
+		return nil
+	}, false)
+	a.storePath = storePath
+
+	if err := a.RunAndCopyCommand("true"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(copied) != 1 || copied[0] != "true" {
+		t.Errorf("expected copyFn called once with %q, got %v", "true", copied)
+	}
+
+	s, err := store.Load(storePath)
+	if err != nil {
+		t.Fatalf("load store: %v", err)
+	}
+	if len(s.History) != 1 {
+		t.Errorf("expected 1 history entry, got %d", len(s.History))
+	}
+}
+
+func TestCopyCommandCopiesAndDoesNotRecord(t *testing.T) {
+	storePath := filepath.Join(t.TempDir(), "store.json")
+	var copied []string
+	a := newTestApp(func(c string) error {
+		copied = append(copied, c)
+		return nil
+	}, false)
+	a.storePath = storePath
+
+	if err := a.CopyCommand("echo hi"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(copied) != 1 || copied[0] != "echo hi" {
+		t.Errorf("expected copyFn called once with %q, got %v", "echo hi", copied)
+	}
+
+	if _, err := os.Stat(storePath); err == nil {
+		t.Errorf("expected store file not created, but it exists")
+	}
+}
+
+func TestCopyCommandReturnsErrorOnClipboardFailure(t *testing.T) {
+	a := newTestApp(func(string) error { return errClipboard }, false)
+
+	err := a.CopyCommand("echo hi")
+	if err == nil {
+		t.Fatal("expected error from CopyCommand, got nil")
+	}
+	if !strings.Contains(err.Error(), "clipboard") {
+		t.Errorf("expected error to mention clipboard, got %v", err)
 	}
 }

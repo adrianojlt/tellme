@@ -108,26 +108,21 @@ func TestRunListNamesEmptyPrintsFriendlyMessage(t *testing.T) {
 	}
 }
 
-func TestRunListNamedSelectsAndReRuns(t *testing.T) {
+func TestRunListNamedSelectsAndRuns(t *testing.T) {
 	entries := []store.Entry{
 		{Title: "list containers", Command: "docker ps"},
 		{Title: "images", Command: "docker images"},
 	}
 
-	var ran string
-	reRun := func(command string) error {
-		ran = command
-		return nil
-	}
-	noRemove := func(string) error { return nil }
+	actions, ran, _, _, _ := noopActions()
 
-	// Select index 1 (docker ps), then action 1 (run/copy).
-	if err := runListing(strings.NewReader("1\n1\n"), entries, "work", reRun, noRemove); err != nil {
+	// Select index 1 (docker ps), then action 1 (Run).
+	if err := runListing(strings.NewReader("1\n1\n"), entries, "work", actions); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if ran != "docker ps" {
-		t.Errorf("expected re-run of %q, got %q", "docker ps", ran)
+	if *ran != "docker ps" {
+		t.Errorf("expected Run of %q, got %q", "docker ps", *ran)
 	}
 }
 

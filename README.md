@@ -47,6 +47,21 @@ go build -o tellme ./cmd/tellme
 sudo cp tellme /usr/local/bin/tellme
 ```
 
+On macOS, an unsigned Go binary copied into `/usr/local/bin` can be killed on launch with no error message (just `zsh: killed tellme`). macOS's `taskgated` rejects it. Clear any stale extended attributes, then apply an ad-hoc signature:
+
+```bash
+sudo xattr -cr /usr/local/bin/tellme
+sudo codesign --force --sign - /usr/local/bin/tellme
+```
+
+If it still fails, check the architecture and the system log for the exact reason:
+
+```bash
+file /usr/local/bin/tellme
+uname -m
+log show --predicate 'process == "taskgated"' --last 1m
+```
+
 ## Run
 
 ```bash

@@ -79,6 +79,52 @@ func (a *App) RunSelected(command string) error {
 	return a.runSelected(os.Stdin, "", "", command)
 }
 
+// RunCommand executes command via the shell and records it in history. It does
+// not interact with the user and never copies to the clipboard. Used by the
+// favorites/list re-run flow when the user picked "Run" from the action menu.
+func (a *App) RunCommand(command string) error {
+
+	if err := a.runCommand(command); err != nil {
+		return err
+	}
+
+	a.record("", "", command)
+
+	return nil
+}
+
+// RunAndCopyCommand executes command via the shell, records it, and copies it
+// to the clipboard. Used by the favorites/list flow for "Run and Copy".
+func (a *App) RunAndCopyCommand(command string) error {
+
+	if err := a.runCommand(command); err != nil {
+		return err
+	}
+
+	if err := a.copyFn(command); err != nil {
+		fmt.Printf("Clipboard error: %v\n", err)
+	} else {
+		fmt.Println("Copied to clipboard.")
+	}
+
+	a.record("", "", command)
+
+	return nil
+}
+
+// CopyCommand copies command to the clipboard without executing it. Used by
+// the favorites/list flow for "Copy to clipboard".
+func (a *App) CopyCommand(command string) error {
+
+	if err := a.copyFn(command); err != nil {
+		return fmt.Errorf("clipboard: %w", err)
+	}
+
+	fmt.Println("Copied to clipboard.")
+
+	return nil
+}
+
 func (a *App) runSelected(r io.Reader, query, title, command string) error {
 	reader := bufio.NewReader(r)
 

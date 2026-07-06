@@ -114,11 +114,12 @@ func RunFavorites(cfgPath string) error {
 		return err
 	}
 
-	removeFn := func(command string) error {
+	actions := listRunnerActions(cfg, storePath)
+	actions.Remove = func(command string) error {
 		s.RemoveFromList("favorites", command)
 		return store.Save(storePath, s)
 	}
-	return runListing(os.Stdin, s.Lists["favorites"], "favorites", reRunner(cfg, storePath), removeFn)
+	return runListing(os.Stdin, s.Lists["favorites"], "favorites", actions)
 }
 
 // storePathFor derives the store path from the config path, mirroring main.go
@@ -127,10 +128,21 @@ func storePathFor(cfgPath string) string {
 	return filepath.Join(filepath.Dir(cfgPath), "store.json")
 }
 
-// runListing renders entries, lets the user select one, then shows an action
-// menu (run/copy or remove). An empty list prints a friendly message and
-// returns nil. reRun and removeFn are injected so the logic is testable.
-func runListing(r io.Reader, entries []store.Entry, label string, reRun func(command string) error, removeFn func(command string) error) error {
+// ListActions holds the four callbacks the favorites/list action menu can
+// invoke. Run, RunAndCopy, and Copy are the three command-handling actions;
+// Remove is the list-management action that mutates the store.
+type ListActions struct {
+	Run        func(command string) error
+	RunAndCopy func(command string) error
+	Copy       func(command string) error
+	Remove     func(command string) error
+}
+
+// runListing renders entries, lets the user select one, then shows the
+// favorites/list action menu (Run, Run and Copy, Copy, Remove). An empty list
+// prints a friendly message and returns nil. All four callbacks are injected
+// so the dispatch logic is unit-testable.
+func runListing(r io.Reader, entries []store.Entry, label string, actions ListActions) error {
 
 	if len(entries) == 0 {
 		fmt.Printf("No %s yet.\n", label)
@@ -163,44 +175,59 @@ func runListing(r io.Reader, entries []store.Entry, label string, reRun func(com
 		return err
 	}
 
-	if action == actionListRemove {
-		if err := removeFn(selected.Command); err != nil {
+	switch action {
+	case actionListRemove:
+		if err := actions.Remove(selected.Command); err != nil {
 			return err
 		}
 		fmt.Printf("Removed from %s.\n", label)
 		return nil
+	case actionListRunAndCopy:
+		return actions.RunAndCopy(selected.Command)
+	case actionListCopy:
+		return actions.Copy(selected.Command)
+	default:
+		return actions.Run(selected.Command)
 	}
-
-	return reRun(selected.Command)
 }
 
 func selectListAction(reader *bufio.Reader, label string) (int, error) {
 	fmt.Println("Action:")
-	fmt.Println("  1) Run / copy")
-	fmt.Printf("  2) Remove from %s\n", label)
+	fmt.Println("  1) Run")
+	fmt.Println("  2) Run and Copy to clipboard")
+	fmt.Println("  3) Copy to clipboard")
+	fmt.Printf("  4) Remove from %s\n", label)
 
-	idx, err := selectIndex(reader, 2)
+	idx, err := selectIndex(reader, 4)
 	if err != nil {
-		return actionListRunCopy, err
+		return actionListRun, err
 	}
 
-	if idx == 1 {
+	switch idx {
+	case 1:
+		return actionListRunAndCopy, nil
+	case 2:
+		return actionListCopy, nil
+	case 3:
 		return actionListRemove, nil
+	default:
+		return actionListRun, nil
 	}
-	return actionListRunCopy, nil
 }
+
+// Action choices offered after selecting a list/favorites item.
+const (
+	actionListRun = iota
+	actionListRunAndCopy
+	actionListCopy
+	actionListRemove
+)
 
 // Action choices offered after selecting a history item.
 const (
 	actionRunCopy = iota
 	actionAddFavorites
 	actionAddList
-)
-
-// Action choices offered after selecting a list/favorites item.
-const (
-	actionListRunCopy = iota
-	actionListRemove
 )
 
 // selectAction prompts the user to choose what to do with the selected history
@@ -335,5 +362,56 @@ func reRunner(cfg *config.Config, storePath string) func(string) error {
 		)
 
 		return a.RunSelected(command)
+	}
+}
+
+// listRunnerActions builds the four-callback ListActions used by the
+// favorites/list action menu. Each callback builds a fresh App (mirroring
+// reRunner) and dispatches to the matching non-interactive App method. The
+// Remove callback is left nil; callers must wire it to the list-specific store
+// mutation before passing the struct to runListing.
+func listRunnerActions(cfg *config.Config, storePath string) ListActions {
+
+	buildApp := func() (*app.App, error) {
+
+		p, err := providers.New(cfg)
+		if err != nil {
+			return nil, err
+		}
+
+		return app.New(
+			p,
+			PrintSuggestions,
+			SelectSuggestion,
+			cfg.Behavior.MaxOptions,
+			clipboard.Copy,
+			cfg.Behavior.CopyAfterSelect,
+			cfg.OS,
+			storePath,
+		), nil
+	}
+
+	return ListActions{
+		Run: func(command string) error {
+			a, err := buildApp()
+			if err != nil {
+				return err
+			}
+			return a.RunCommand(command)
+		},
+		RunAndCopy: func(command string) error {
+			a, err := buildApp()
+			if err != nil {
+				return err
+			}
+			return a.RunAndCopyCommand(command)
+		},
+		Copy: func(command string) error {
+			a, err := buildApp()
+			if err != nil {
+				return err
+			}
+			return a.CopyCommand(command)
+		},
 	}
 }
