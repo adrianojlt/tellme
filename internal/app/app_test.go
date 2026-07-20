@@ -89,6 +89,29 @@ func TestRunSelectedRecordsOnExecute(t *testing.T) {
 	}
 }
 
+func TestRunSelectedRecordsOnCopy(t *testing.T) {
+	storePath := filepath.Join(t.TempDir(), "store.json")
+	a := newTestApp(func(string) error { return nil }, false)
+	a.storePath = storePath
+
+	err := a.runSelected(strings.NewReader("n\ny\n"), "list files", "List files", "echo hi")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	s, err := store.Load(storePath)
+	if err != nil {
+		t.Fatalf("load store: %v", err)
+	}
+	if len(s.History) != 1 {
+		t.Fatalf("expected 1 history entry, got %d", len(s.History))
+	}
+	e := s.History[0]
+	if e.Query != "list files" || e.Command != "echo hi" || e.Title != "List files" {
+		t.Errorf("unexpected entry: %+v", e)
+	}
+}
+
 func TestRunSelectedDedupOnRepeat(t *testing.T) {
 	storePath := filepath.Join(t.TempDir(), "store.json")
 	a := newTestApp(func(string) error { return nil }, false)
@@ -214,7 +237,7 @@ func TestRunAndCopyCommandExecutesRecordsAndCopies(t *testing.T) {
 	}
 }
 
-func TestCopyCommandCopiesAndDoesNotRecord(t *testing.T) {
+func TestCopyCommandCopiesAndRecords(t *testing.T) {
 	storePath := filepath.Join(t.TempDir(), "store.json")
 	var copied []string
 	a := newTestApp(func(c string) error {
@@ -231,8 +254,30 @@ func TestCopyCommandCopiesAndDoesNotRecord(t *testing.T) {
 		t.Errorf("expected copyFn called once with %q, got %v", "echo hi", copied)
 	}
 
-	if _, err := os.Stat(storePath); err == nil {
-		t.Errorf("expected store file not created, but it exists")
+	s, err := store.Load(storePath)
+	if err != nil {
+		t.Fatalf("load store: %v", err)
+	}
+	if len(s.History) != 1 {
+		t.Fatalf("expected 1 history entry, got %d", len(s.History))
+	}
+	if s.History[0].Command != "echo hi" {
+		t.Errorf("expected history command %q, got %q", "echo hi", s.History[0].Command)
+	}
+}
+
+func TestCopyCommandDoesNotRecordOnClipboardFailure(t *testing.T) {
+	storePath := filepath.Join(t.TempDir(), "store.json")
+	a := newTestApp(func(string) error { return errClipboard }, false)
+	a.storePath = storePath
+
+	err := a.CopyCommand("echo hi")
+	if err == nil {
+		t.Fatal("expected error from CopyCommand, got nil")
+	}
+
+	if _, statErr := os.Stat(storePath); statErr == nil {
+		t.Errorf("expected store file not created on clipboard failure, but it exists")
 	}
 }
 
